@@ -6,9 +6,9 @@
  to you under the Apache License, Version 2.0 (the
  "License"); you may not use this file except in compliance
  with the License.  You may obtain a copy of the License at
-
+ 
  http://www.apache.org/licenses/LICENSE-2.0
-
+ 
  Unless required by applicable law or agreed to in writing,
  software distributed under the License is distributed on an
  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,9 +29,6 @@
 
 #define CDV_BRIDGE_NAME @"cordova"
 #define CDV_IONIC_STOP_SCROLL @"stopScroll"
-#define CDV_SERVER_PATH @"serverBasePath"
-#define LAST_BINARY_VERSION_CODE @"lastBinaryVersionCode"
-#define LAST_BINARY_VERSION_NAME @"lastBinaryVersionName"
 
 #define CDV_WKWEBVIEW_FILE_URL_LOAD_SELECTOR @"loadFileURL:allowingReadAccessToURL:"
 
@@ -46,16 +43,16 @@
             Class class = [self class];
             SEL originalSelector = @selector(init);
             SEL swizzledSelector = @selector(xxx_init);
-
+            
             Method originalMethod = class_getInstanceMethod(class, originalSelector);
             Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
-
+            
             BOOL didAddMethod =
             class_addMethod(class,
                             originalSelector,
                             method_getImplementation(swizzledMethod),
                             method_getTypeEncoding(swizzledMethod));
-
+            
             if (didAddMethod) {
                 class_replaceMethod(class,
                                     swizzledSelector,
@@ -140,43 +137,6 @@
     return self;
 }
 
-- (void)initWebServer
-{
-    // TODO: CAN WE REMOVE ALL OF THIS?
-
-    NSString * wwwPath = [[NSBundle mainBundle] pathForResource:@"www" ofType: nil];
-
-    NSUserDefaults* userDefaults = [NSUserDefaults standardUserDefaults];
-    NSString * persistedPath = [userDefaults objectForKey:CDV_SERVER_PATH];
-    if (![self isDeployDisabled] && ![self isNewBinary] && persistedPath && ![persistedPath isEqualToString:@""]) {
-        NSString *libPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
-        NSString * cordovaDataDirectory = [libPath stringByAppendingPathComponent:@"NoCloud"];
-        NSString * snapshots = [cordovaDataDirectory stringByAppendingPathComponent:@"ionic_built_snapshots"];
-        wwwPath = [snapshots stringByAppendingPathComponent:[persistedPath lastPathComponent]];
-    }
-}
-
--(BOOL) isNewBinary
-{
-    NSString * versionCode = [[NSBundle mainBundle] infoDictionary][@"CFBundleVersion"];
-    NSString * versionName = [[NSBundle mainBundle] infoDictionary][@"CFBundleShortVersionString"];
-    NSUserDefaults * prefs = [NSUserDefaults standardUserDefaults];
-    NSString * lastVersionCode = [prefs stringForKey:LAST_BINARY_VERSION_CODE];
-    NSString * lastVersionName = [prefs stringForKey:LAST_BINARY_VERSION_NAME];
-    if (![versionCode isEqualToString:lastVersionCode] || ![versionName isEqualToString:lastVersionName]) {
-        [prefs setObject:versionCode forKey:LAST_BINARY_VERSION_CODE];
-        [prefs setObject:versionName forKey:LAST_BINARY_VERSION_NAME];
-        [prefs setObject:@"" forKey:CDV_SERVER_PATH];
-        [prefs synchronize];
-        return YES;
-    }
-    return NO;
-}
-
--(BOOL) isDeployDisabled {
-    return [[self.commandDelegate.settings objectForKey:[@"DisableDeploy" lowercaseString]] boolValue];
-}
-
 - (WKWebViewConfiguration*) createConfigurationFromSettings:(NSDictionary*)settings
 {
     WKWebViewConfiguration* configuration = [[WKWebViewConfiguration alloc] init];
@@ -207,29 +167,27 @@
 {
     // viewController would be available now. we attempt to set all possible delegates to it, by default
     NSDictionary* settings = self.commandDelegate.settings;
-
-    [self initWebServer]; // TODO is the code here necessary?
-
+    
     self.uiDelegate = [[CDVWKWebViewUIDelegate alloc] initWithTitle:[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleDisplayName"]];
-
+    
     CDVWKWeakScriptMessageHandler *weakScriptMessageHandler = [[CDVWKWeakScriptMessageHandler alloc] initWithScriptMessageHandler:self];
-
+    
     WKUserContentController* userContentController = [[WKUserContentController alloc] init];
     [userContentController addScriptMessageHandler:weakScriptMessageHandler name:CDV_BRIDGE_NAME];
     [userContentController addScriptMessageHandler:weakScriptMessageHandler name:CDV_IONIC_STOP_SCROLL];
-
+    
     // Inject XHR Polyfill
     NSLog(@"CDVWKWebViewEngine: trying to inject XHR polyfill");
     WKUserScript *wkScript = [self wkPluginScript];
     if (wkScript) {
         [userContentController addUserScript:wkScript];
     }
-
+    
     WKUserScript *configScript = [self configScript];
     if (configScript) {
         [userContentController addUserScript:configScript];
     }
-
+    
     BOOL autoCordova = [settings cordovaBoolSettingForKey:@"AutoInjectCordova" defaultValue:NO];
     if (autoCordova){
         NSLog(@"CDVWKWebViewEngine: trying to inject XHR polyfill");
@@ -238,66 +196,66 @@
             [userContentController addUserScript:cordova];
         }
     }
-
+    
     BOOL audioCanMix = [settings cordovaBoolSettingForKey:@"AudioCanMix" defaultValue:NO];
     if (audioCanMix) {
         [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord
                                          withOptions:AVAudioSessionCategoryOptionMixWithOthers
                                                error:nil];
     }
-
+    
     WKWebViewConfiguration* configuration = [self createConfigurationFromSettings:settings];
     configuration.userContentController = userContentController;
-
+    
     // re-create WKWebView, since we need to update configuration
     // remove from keyWindow before recreating
     [self.engineWebView removeFromSuperview];
     WKWebView* wkWebView = [[WKWebView alloc] initWithFrame:self.frame configuration:configuration];
-
-    #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000
+    
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000
     if (@available(iOS 11.0, *)) {
-      [wkWebView.scrollView setContentInsetAdjustmentBehavior:UIScrollViewContentInsetAdjustmentNever];
+        [wkWebView.scrollView setContentInsetAdjustmentBehavior:UIScrollViewContentInsetAdjustmentNever];
     }
-    #endif
-
+#endif
+    
     wkWebView.UIDelegate = self.uiDelegate;
     self.engineWebView = wkWebView;
     // add to keyWindow to ensure it is 'active'
     [UIApplication.sharedApplication.keyWindow addSubview:self.engineWebView];
-
+    
     if (IsAtLeastiOSVersion(@"9.0") && [self.viewController isKindOfClass:[CDVViewController class]]) {
         wkWebView.customUserAgent = ((CDVViewController*) self.viewController).userAgent;
     }
-
+    
     if ([self.viewController conformsToProtocol:@protocol(WKUIDelegate)]) {
         wkWebView.UIDelegate = (id <WKUIDelegate>)self.viewController;
     }
-
+    
     if ([self.viewController conformsToProtocol:@protocol(WKNavigationDelegate)]) {
         wkWebView.navigationDelegate = (id <WKNavigationDelegate>)self.viewController;
     } else {
         wkWebView.navigationDelegate = (id <WKNavigationDelegate>)self;
     }
-
+    
     if ([self.viewController conformsToProtocol:@protocol(WKScriptMessageHandler)]) {
         [wkWebView.configuration.userContentController addScriptMessageHandler:(id < WKScriptMessageHandler >)self.viewController name:CDV_BRIDGE_NAME];
     }
-
+    
     //if (![settings cordovaBoolSettingForKey:@"KeyboardDisplayRequiresUserAction" defaultValue:NO]) {
     [self keyboardDisplayDoesNotRequireUserAction];
     //}
-
+    
     [self updateSettings:settings];
-
+    
     // check if content thread has died on resume
     NSLog(@"%@", @"CDVWKWebViewEngine will reload WKWebView if required on resume");
     [[NSNotificationCenter defaultCenter]
      addObserver:self
      selector:@selector(onAppWillEnterForeground:)
      name:UIApplicationWillEnterForegroundNotification object:nil];
-
+    
     NSLog(@"Using Ionic WKWebView");
-
+    
     [self addURLObserver];
 }
 
@@ -305,7 +263,7 @@
 - (void) keyboardDisplayDoesNotRequireUserAction {
     Class class = NSClassFromString(@"WKContentView");
     NSOperatingSystemVersion iOS_11_3_0 = (NSOperatingSystemVersion){11, 3, 0};
-
+    
     if ([[NSProcessInfo processInfo] isOperatingSystemAtLeastVersion: iOS_11_3_0]) {
         SEL selector = sel_getUid("_startAssistingNode:userIsInteracting:blurPreviousNode:changingActivityState:userObject:");
         Method method = class_getInstanceMethod(class, selector);
@@ -368,16 +326,16 @@ static void * KVOContext = &KVOContext;
 {
     BOOL title_is_nil = (title == nil);
     BOOL location_is_blank = [[location absoluteString] isEqualToString:@"about:blank"];
-
+    
     BOOL reload = (title_is_nil || location_is_blank);
-
+    
 #ifdef DEBUG
     NSLog(@"%@", @"CDVWKWebViewEngine shouldReloadWebView::");
     NSLog(@"CDVWKWebViewEngine shouldReloadWebView title: %@", title);
     NSLog(@"CDVWKWebViewEngine shouldReloadWebView location: %@", [location absoluteString]);
     NSLog(@"CDVWKWebViewEngine shouldReloadWebView reload: %u", reload);
 #endif
-
+    
     return reload;
 }
 
@@ -426,10 +384,10 @@ static void * KVOContext = &KVOContext;
 - (void)updateSettings:(NSDictionary *)settings
 {
     WKWebView* wkWebView = (WKWebView *)_engineWebView;
-
+    
     // By default, DisallowOverscroll is false (thus bounce is allowed)
     BOOL bounceAllowed = !([settings cordovaBoolSettingForKey:@"DisallowOverscroll" defaultValue:NO]);
-
+    
     // prevent webView from bouncing
     if (!bounceAllowed) {
         if ([wkWebView respondsToSelector:@selector(scrollView)]) {
@@ -442,7 +400,7 @@ static void * KVOContext = &KVOContext;
             }
         }
     }
-
+    
     wkWebView.configuration.preferences.minimumFontSize = [settings cordovaFloatSettingForKey:@"MinimumFontSize" defaultValue:0.0];
     wkWebView.allowsLinkPreview = [settings cordovaBoolSettingForKey:@"AllowLinkPreview" defaultValue:NO];
     wkWebView.scrollView.scrollEnabled = [settings cordovaBoolSettingForKey:@"ScrollEnabled" defaultValue:NO];
@@ -455,12 +413,12 @@ static void * KVOContext = &KVOContext;
     NSDictionary* settings = [info objectForKey:kCDVWebViewEngineWebViewPreferences];
     id navigationDelegate = [info objectForKey:kCDVWebViewEngineWKNavigationDelegate];
     id uiDelegate = [info objectForKey:kCDVWebViewEngineWKUIDelegate];
-
+    
     WKWebView* wkWebView = (WKWebView*)_engineWebView;
-
+    
     if (scriptMessageHandlers && [scriptMessageHandlers isKindOfClass:[NSDictionary class]]) {
         NSArray* allKeys = [scriptMessageHandlers allKeys];
-
+        
         for (NSString* key in allKeys) {
             id object = [scriptMessageHandlers objectForKey:key];
             if ([object conformsToProtocol:@protocol(WKScriptMessageHandler)]) {
@@ -468,15 +426,15 @@ static void * KVOContext = &KVOContext;
             }
         }
     }
-
+    
     if (navigationDelegate && [navigationDelegate conformsToProtocol:@protocol(WKNavigationDelegate)]) {
         wkWebView.navigationDelegate = navigationDelegate;
     }
-
+    
     if (uiDelegate && [uiDelegate conformsToProtocol:@protocol(WKUIDelegate)]) {
         wkWebView.UIDelegate = uiDelegate;
     }
-
+    
     if (settings && [settings isKindOfClass:[NSDictionary class]]) {
         [self updateSettings:settings];
     }
@@ -509,7 +467,7 @@ static void * KVOContext = &KVOContext;
         NSLog(@"CDVWKWebViewEngine: WK plugin can not be loaded: %@", error);
         return nil;
     }
-
+    
     return [[WKUserScript alloc] initWithSource:source
                                   injectionTime:WKUserScriptInjectionTimeAtDocumentStart
                                forMainFrameOnly:YES];
@@ -522,14 +480,14 @@ static void * KVOContext = &KVOContext;
     if(!keyboardPlugin) {
         return nil;
     }
-
+    
     BOOL keyboardResizes = [self.commandDelegate.settings cordovaBoolSettingForKey:@"KeyboardResize" defaultValue:YES];
     NSString *source = [NSString stringWithFormat:
                         @"window.Ionic = window.Ionic || {};"
                         @"window.Ionic.keyboardPlugin=true;"
                         @"window.Ionic.keyboardResizes=%@",
                         keyboardResizes ? @"true" : @"false"];
-
+    
     return [[WKUserScript alloc] initWithSource:source
                                   injectionTime:WKUserScriptInjectionTimeAtDocumentStart
                                forMainFrameOnly:YES];
@@ -549,7 +507,7 @@ static void * KVOContext = &KVOContext;
         return nil;
     }
     NSLog(@"CDVWKWebViewEngine: auto injecting cordova");
-
+    
     return [[WKUserScript alloc] initWithSource:source
                                   injectionTime:WKUserScriptInjectionTimeAtDocumentStart
                                forMainFrameOnly:YES];
@@ -569,11 +527,11 @@ static void * KVOContext = &KVOContext;
 - (void)handleCordovaMessage:(WKScriptMessage*)message
 {
     CDVViewController *vc = (CDVViewController*)self.viewController;
-
+    
     NSArray *jsonEntry = message.body; // NSString:callbackId, NSString:service, NSString:action, NSArray:args
     CDVInvokedUrlCommand* command = [CDVInvokedUrlCommand commandFromJson:jsonEntry];
     CDV_EXEC_LOG(@"Exec(%@): Calling %@.%@", command.callbackId, command.className, command.methodName);
-
+    
     if (![vc.commandQueue execute:command]) {
 #ifdef DEBUG
         NSError* error = nil;
@@ -581,16 +539,16 @@ static void * KVOContext = &KVOContext;
         NSData* jsonData = [NSJSONSerialization dataWithJSONObject:jsonEntry
                                                            options:0
                                                              error:&error];
-
+        
         if (error == nil) {
             commandJson = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
         }
-
+        
         static NSUInteger maxLogLength = 1024;
         NSString* commandString = ([commandJson length] > maxLogLength) ?
         [NSString stringWithFormat : @"%@[...]", [commandJson substringToIndex:maxLogLength]] :
         commandJson;
-
+        
         NSLog(@"FAILED pluginJSON = %@", commandString);
 #endif
     }
@@ -608,13 +566,13 @@ static void * KVOContext = &KVOContext;
 {
     if([node isKindOfClass: [UIScrollView class]]) {
         UIScrollView *nodeAsScroll = (UIScrollView *)node;
-
+        
         if([nodeAsScroll isScrollEnabled] && ![nodeAsScroll isHidden]) {
             [nodeAsScroll setScrollEnabled: NO];
             [nodeAsScroll setScrollEnabled: YES];
         }
     }
-
+    
     // iterate tree recursivelly
     for (UIView *child in [node subviews]) {
         [self recursiveStopScroll:child];
@@ -633,7 +591,7 @@ static void * KVOContext = &KVOContext;
 {
     CDVViewController* vc = (CDVViewController*)self.viewController;
     [CDVUserAgentUtil releaseLock:vc.userAgentLockToken];
-
+    
     [[NSNotificationCenter defaultCenter] postNotification:[NSNotification notificationWithName:CDVPageDidLoadNotification object:webView]];
 }
 
@@ -646,10 +604,10 @@ static void * KVOContext = &KVOContext;
 {
     CDVViewController* vc = (CDVViewController*)self.viewController;
     [CDVUserAgentUtil releaseLock:vc.userAgentLockToken];
-
+    
     NSString* message = [NSString stringWithFormat:@"Failed to load webpage with error: %@", [error localizedDescription]];
     NSLog(@"%@", message);
-
+    
     NSURL* errorUrl = vc.errorURL;
     if (errorUrl) {
         errorUrl = [NSURL URLWithString:[NSString stringWithFormat:@"?error=%@", [message stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]] relativeToURL:errorUrl];
@@ -669,7 +627,7 @@ static void * KVOContext = &KVOContext;
     if ([url isFileURL]) {
         return YES;
     }
-
+    
     return NO;
 }
 
@@ -677,13 +635,13 @@ static void * KVOContext = &KVOContext;
 {
     NSURL* url = [navigationAction.request URL];
     CDVViewController* vc = (CDVViewController*)self.viewController;
-
+    
     /*
      * Give plugins the chance to handle the url
      */
     BOOL anyPluginsResponded = NO;
     BOOL shouldAllowRequest = NO;
-
+    
     for (NSString* pluginName in vc.pluginObjects) {
         CDVPlugin* plugin = [vc.pluginObjects objectForKey:pluginName];
         SEL selector = NSSelectorFromString(@"shouldOverrideLoadWithRequest:navigationType:");
@@ -700,7 +658,7 @@ static void * KVOContext = &KVOContext;
             }
         }
     }
-
+    
     if (!anyPluginsResponded) {
         /*
          * Handle all other types of urls (tel:, sms:), and requests to load a url in the main webview.
@@ -710,7 +668,7 @@ static void * KVOContext = &KVOContext;
             [[NSNotificationCenter defaultCenter] postNotification:[NSNotification notificationWithName:CDVPluginHandleOpenURLNotification object:url]];
         }
     }
-
+    
     if (shouldAllowRequest) {
         NSString *scheme = url.scheme;
         if ([scheme isEqualToString:@"tel"] ||
