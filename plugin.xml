@@ -27,10 +27,13 @@
     <repo>https://github.com/airgap-it/cordova-plugin-airgap-webview</repo>
 
 	<engines>
+        <engine name="cordova" version=">=7.1.0"/>
         <engine name="cordova-ios" version=">=4.0.0-dev"/>
-        <engine name="apple-ios" version=">=9.0"/>
+        <engine name="apple-ios" version=">=11.0"/>
 	</engines>
-
+  <js-module src="src/www/util.js" name="IonicWebView">
+      <clobbers target="Ionic.WebView"/>
+  </js-module>
   <!-- ios -->
   <platform name="ios">
     <js-module src="src/www/ios/ios-wkwebview-exec.js" name="ios-wkwebview-exec">
@@ -38,6 +41,8 @@
     </js-module>
 
     <config-file target="config.xml" parent="/*">
+    	<allow-navigation href="ionic://*"/>
+		<preference name="deployment-target" value="11.0"/>
         <feature name="AirGapWebView">
             <param name="ios-package" value="CDVWKWebViewEngine"/>
         </feature>
@@ -52,8 +57,9 @@
     <source-file src="src/ios/CDVWKWebViewUIDelegate.m"/>
     <header-file src="src/ios/CDVWKProcessPoolFactory.h"/>
     <source-file src="src/ios/CDVWKProcessPoolFactory.m"/>
+    <header-file src="src/ios/IONAssetHandler.h"/>
+    <source-file src="src/ios/IONAssetHandler.m"/>
     <asset src="src/ios/wk-plugin.js" target="wk-plugin.js"/>
-
   </platform>
   <issue>https://github.com/airgap-it/cordova-plugin-airgap-webview/issues</issue>
   <author>AirGap Team</author>
