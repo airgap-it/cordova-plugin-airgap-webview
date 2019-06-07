@@ -204,7 +204,7 @@ NSTimer *timer;
     WKUserContentController* userContentController = [[WKUserContentController alloc] init];
     [userContentController addScriptMessageHandler:weakScriptMessageHandler name:CDV_BRIDGE_NAME];
     [userContentController addScriptMessageHandler:weakScriptMessageHandler name:CDV_IONIC_STOP_SCROLL];
-	NSString * encodedContentRuleList = @"[{\"trigger\":{\"url-filter\":\".*\"},\"action\":{\"type\":\"block\"}},{\"trigger\":{\"url-filter\":\"ionic://.*\"},\"action\":{\"type\":\"ignore-previous-rules\"}}]";
+	NSString * encodedContentRuleList = [NSString stringWithFormat:@"[{\"trigger\":{\"url-filter\":\".*\"},\"action\":{\"type\":\"block\"}},{\"trigger\":{\"url-filter\":\"%@://%@.*\"},\"action\":{\"type\":\"ignore-previous-rules\"}}]", scheme, bind];
 	[[WKContentRuleListStore defaultStore] compileContentRuleListForIdentifier:@"content-filter-rule" encodedContentRuleList:encodedContentRuleList completionHandler:^(WKContentRuleList * contentRuleList, NSError * error) {
 		[userContentController addContentRuleList:contentRuleList];
 	}];
