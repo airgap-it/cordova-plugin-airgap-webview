@@ -133,38 +133,8 @@ NSTimer *timer;
 
 -(NSString *) getStartPath {
     NSString * wwwPath = [[NSBundle mainBundle] pathForResource:@"www" ofType: nil];
-
-    NSUserDefaults* userDefaults = [NSUserDefaults standardUserDefaults];
-    NSString * persistedPath = [userDefaults objectForKey:CDV_SERVER_PATH];
-    if (![self isDeployDisabled] && ![self isNewBinary] && persistedPath && ![persistedPath isEqualToString:@""]) {
-        NSString *libPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
-        NSString * cordovaDataDirectory = [libPath stringByAppendingPathComponent:@"NoCloud"];
-        NSString * snapshots = [cordovaDataDirectory stringByAppendingPathComponent:@"ionic_built_snapshots"];
-        wwwPath = [snapshots stringByAppendingPathComponent:[persistedPath lastPathComponent]];
-    }
     self.basePath = wwwPath;
     return wwwPath;
-}
-
--(BOOL) isNewBinary
-{
-    NSString * versionCode = [[NSBundle mainBundle] infoDictionary][@"CFBundleVersion"];
-    NSString * versionName = [[NSBundle mainBundle] infoDictionary][@"CFBundleShortVersionString"];
-    NSUserDefaults * prefs = [NSUserDefaults standardUserDefaults];
-    NSString * lastVersionCode = [prefs stringForKey:LAST_BINARY_VERSION_CODE];
-    NSString * lastVersionName = [prefs stringForKey:LAST_BINARY_VERSION_NAME];
-    if (![versionCode isEqualToString:lastVersionCode] || ![versionName isEqualToString:lastVersionName]) {
-        [prefs setObject:versionCode forKey:LAST_BINARY_VERSION_CODE];
-        [prefs setObject:versionName forKey:LAST_BINARY_VERSION_NAME];
-        [prefs setObject:@"" forKey:CDV_SERVER_PATH];
-        [prefs synchronize];
-        return YES;
-    }
-    return NO;
-}
-
--(BOOL) isDeployDisabled {
-    return [[self.commandDelegate.settings objectForKey:[@"DisableDeploy" lowercaseString]] boolValue];
 }
 
 - (WKWebViewConfiguration*) createConfigurationFromSettings:(NSDictionary*)settings
