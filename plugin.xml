@@ -19,7 +19,7 @@
   under the License.
 -->
 
-<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="cordova-plugin-airgap-webview" version="1.0.0">
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="cordova-plugin-airgap-webview" version="4.0.1">
     <name>cordova-plugin-airgap-webview</name>
     <description>The official AirGap's WKWebView Engine Plugin</description>
     <license>Apache-2.0</license>
