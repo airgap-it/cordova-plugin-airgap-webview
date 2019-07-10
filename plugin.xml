@@ -19,9 +19,15 @@
   under the License.
 -->
 
+<<<<<<< HEAD
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="cordova-plugin-airgap-webview" version="4.0.1">
     <name>cordova-plugin-airgap-webview</name>
     <description>The official AirGap's WKWebView Engine Plugin</description>
+=======
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:rim="http://www.blackberry.com/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" id="cordova-plugin-ionic-webview" version="4.1.1">
+    <name>cordova-plugin-ionic-webview</name>
+    <description>Ionic Web View Engine Plugin</description>
+>>>>>>> f5c0bbda498c526dc97bca977071b38285018f6b
     <license>Apache-2.0</license>
     <keywords>cordova,wkwebview</keywords>
     <repo>https://github.com/airgap-it/cordova-plugin-airgap-webview</repo>
